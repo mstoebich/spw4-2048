@@ -1,0 +1,42 @@
+name: Build and Deploy 2048
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64]
+
+    env:
+      APP_NAME: game2048
+      TOMCAT_WEBAPPS: /usr/local/tomcat/webapps
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build WAR
+        run: mvn -B clean package
+
+      - name: Deploy WAR to Tomcat
+        run: |
+          WAR_FILE="$(find target -maxdepth 1 -type f -name '*.war' | head -n 1)"
+
+          if [ -z "$WAR_FILE" ]; then
+            echo "No WAR file found in target/"
+            exit 1
+          fi
+
+          rm -rf "$TOMCAT_WEBAPPS/*"
+          
+          cp "$WAR_FILE" "$TOMCAT_WEBAPPS/$APP_NAME.war"
+
+      - name: Check deployment
+        run: |
+          sleep 5
+          curl -f "http://localhost:8080/$APP_NAME/" || exit 1
